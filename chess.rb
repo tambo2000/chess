@@ -55,8 +55,13 @@ class Board
   end
 
   def tile_at(pos)
-      rank, file = pos
-      @grid[rank][file]
+    rank, file = pos
+    @grid[rank][file]
+  end
+
+  def set_tile_at(pos, piece)
+    rank, file = pos
+    @grid[rank][file] = piece
   end
 
 end
@@ -65,21 +70,29 @@ class Piece
   attr_reader :color
 
   def initialize(position, color, board)
-    rank, file = position
     @color = color
-    board.grid[rank][file] = self
+    board.set_tile_at(position, self)
   end
 
   def move(start, destination, board)
     #check if valid move
-    start_rank, start_file = start
-    destination_rank, destination_file = destination
-    board.grid[start_rank][start_file] = :empty
-    board.grid[destination_rank][destination_file] = self
+    if valid_move?(start, destination, board)
+      board.set_tile_at(start, :empty)
+      board.set_tile_at(destination, self)
+    end
   end
 
-  def valid_move? (start, destination, board)
-    # if board.tile_at()
+  def valid_move?(start, destination, board)
+    return false if destination.any? { |val| val < 0 || val > 7 }
+    if board.tile_at(destination) != :empty
+      if board.tile_at(start).color == board.tile_at(destination).color
+        return false
+      elsif board.tile_at(destination).class == King
+        return false
+      end
+    end
+
+    true
   end
 
 end
@@ -95,6 +108,28 @@ class Rook < Slider
   def initialize(position, color, board)
     super(position, color, board)
   end
+
+  def valid_move?(start, destination, board)
+    # false if invalid general move
+    return false unless super(start, destination, board)
+    # false if not in same row or column (non vertical or horizontal move)
+    return false unless start[0] == destination[0] || start[1] == destination[1]
+    # if in same rank
+    if start[0] == destination[0]
+      # check each tile in between
+      ((start[1] + 1)...destination[1]).each do |index|
+        # make sure there are no pieces in between
+        return false if board.tile_at([start[0], index]) != :empty
+      end
+    else # if in same file
+      ((start[0] + 1)...destination[0]).each do |index|
+        return false if board.tile_at([index, start[1]]) != :empty
+      end
+    end
+
+    true
+  end
+
 end
 
 class Bishop < Slider
@@ -129,4 +164,4 @@ end
 
 
 a = Board.new
-a.move_piece([0,0], [3,3])
+a.move_piece([0, 0], [2, 0])
