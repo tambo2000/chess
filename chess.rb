@@ -109,11 +109,14 @@ class Piece
   end
 
   def valid_move?(start, destination, board)
+    # not valid if off the board
     return false if destination.any? { |val| val < 0 || val > 7 }
     if board.tile_at(destination) != :empty
       if board.tile_at(start).color == board.tile_at(destination).color
-        return false
+        return false # not valid if same color piece at destination
       elsif board.tile_at(destination).class == King
+        return false # not valid if king at destination
+      elsif start == destination
         return false
       end
     end
@@ -206,11 +209,32 @@ class Pawn < Piece
     # false if invalid general move
     return false unless super(start, destination, board)
 
-    # if pawn is in starting row, then first move for pawn
-    if ((start[0] - destination[0] == -1 && board.tile_at(start).color == :black) ||
-        (start[0] - destination[0] == 1 && board.tile_at(start).color == :white) ||
-        (start[0] == 6 && destination[0] == 4 && board.tile_at(start).color == :white) ||
-        (start[0] == 1 && destination[0] == 3 && board.tile_at(start).color == :black))
+    pawn = board.tile_at(start)
+
+    # pawn can never go backwards
+    if ((start[0] - destination[0] < 0 && pawn.color == :white) ||
+        (start[0] - destination[0] > 0 && pawn.color == :black))
+        return false
+    end
+
+    # if pawn can capture then diagonal move allowed
+    if (start[0] - destination[0]).abs == 1 &&
+       (start[1] - destination[1]).abs == 1 &&
+       board.tile_at(destination) != :empty &&
+       board.tile_at(destination).color != pawn.color
+       return true
+    # pawn can move one space forward
+    elsif ((start[0] - destination[0] == -1 &&
+            pawn.color == :black &&
+            board.tile_at(destination) == :empty) ||
+           (start[0] - destination[0] == 1 &&
+            pawn.color == :white &&
+            board.tile_at(destination) == :empty) ||
+        # if pawn is in starting row, then first move for pawn can be 1 or 2 spaces
+           (start[0] == 6 && destination[0] == 4 &&
+            pawn.color == :white && board.tile_at(destination) == :empty) ||
+           (start[0] == 1 && destination[0] == 3 &&
+            pawn.color == :black && board.tile_at(destination) == :empty))
       return same_column?(start, destination)
     end
 
@@ -225,5 +249,15 @@ end
 
 
 a = Board.new
-a.move_piece([6, 1], [3, 1])
+a.move_piece([6, 1], [5, 1])
+a.display_board
+a.move_piece([1, 1], [3, 1])
+a.display_board
+a.move_piece([5, 1], [4, 1])
+a.display_board
+a.move_piece([3, 1], [4, 1])
+a.display_board
+a.move_piece([1, 2], [3, 2])
+a.display_board
+a.move_piece([3, 2], [4, 1])
 a.display_board
