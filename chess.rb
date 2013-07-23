@@ -95,6 +95,27 @@ class Piece
     true
   end
 
+  def same_row?(start, destination)
+    if start[0] == destination[0]
+      return true
+    end
+    false
+  end
+
+  def same_column?(start, destination)
+    if start[1] == destination[1]
+      return true
+    end
+    false
+  end
+
+  def same_diagonal?(start, destination)
+    if ((start[1] - destination[1])/(start[0] - destination[0])).abs == 1
+      return true
+    end
+    false
+  end
+
 end
 
 class Slider < Piece
@@ -113,9 +134,9 @@ class Rook < Slider
     # false if invalid general move
     return false unless super(start, destination, board)
     # false if not in same row or column (non vertical or horizontal move)
-    return false unless start[0] == destination[0] || start[1] == destination[1]
+    return false unless same_row?(start, destination) || same_column?(start, destination)
     # if in same rank
-    if start[0] == destination[0]
+    if same_row?(start, destination)
       # check each tile in between
       ((start[1] + 1)...destination[1]).each do |index|
         # make sure there are no pieces in between
@@ -153,6 +174,19 @@ end
 class Pawn < Piece
   def initialize(position, color, board)
     super(position, color, board)
+  end
+
+  def valid_move?(start, destination, board)
+    # # false if invalid general move
+ #    return false unless super(start, destination, board)
+ #    # if pawn is in starting row, then first move for pawn
+ #    if start[1] - destination[1] == -1 && board.tile_at(start).color == :black
+ #      return true
+ #    elsif start[1] - destination[1] == 1 && board.tile_at(start).color == :white
+ #      return true
+ #    elsif start[0] == 6 && destination[0] == 4 && board.tile_at(start).color == :white
+ #      return true
+ #    end
   end
 end
 
