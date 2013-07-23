@@ -1,3 +1,7 @@
+# coding: utf-8
+
+require 'colorize'
+
 class Chess
 
 end
@@ -41,7 +45,6 @@ class Board
       Pawn.new([6, rank1], :white, self)
     end
 
-    p @grid
   end
 
   def move_piece(start, destination)
@@ -51,7 +54,6 @@ class Board
       puts "The start space is empty!"
     end
 
-    p @grid
   end
 
   def tile_at(pos)
@@ -62,6 +64,29 @@ class Board
   def set_tile_at(pos, piece)
     rank, file = pos
     @grid[rank][file] = piece
+  end
+
+  def display_board
+    pieces = { Rook => "♜",
+               Bishop => "♝",
+               Queen => "♛",
+               Knight => "♞",
+               Pawn => "♟",
+               King => "♚"}
+
+    (0..7).each do |rank|
+      (0..7).each do |file|
+        background = (rank + file) % 2 == 0 ? :yellow : :light_red
+        piece = self.tile_at([rank, file])
+        if piece != :empty
+          print "#{pieces[piece.class]} ".colorize(:color => piece.color, :background => background)
+        else
+          print "  ".colorize(:background => background)
+        end
+      end
+      puts
+    end
+
   end
 
 end
@@ -177,16 +202,15 @@ class Pawn < Piece
   end
 
   def valid_move?(start, destination, board)
-    # # false if invalid general move
- #    return false unless super(start, destination, board)
- #    # if pawn is in starting row, then first move for pawn
- #    if start[1] - destination[1] == -1 && board.tile_at(start).color == :black
- #      return true
- #    elsif start[1] - destination[1] == 1 && board.tile_at(start).color == :white
- #      return true
- #    elsif start[0] == 6 && destination[0] == 4 && board.tile_at(start).color == :white
- #      return true
- #    end
+    # false if invalid general move
+    return false unless super(start, destination, board)
+    # if pawn is in starting row, then first move for pawn
+    if ((start[1] - destination[1] == -1 && board.tile_at(start).color == :black) ||
+        (start[1] - destination[1] == 1 && board.tile_at(start).color == :white) ||
+        (start[0] == 6 && destination[0] == 4 && board.tile_at(start).color) ||
+        (start[0] == 1 && destination[0] == 3 && board.tile_at(start).color))
+       return same_row?(start, destination)
+    end
   end
 end
 
@@ -198,4 +222,6 @@ end
 
 
 a = Board.new
-a.move_piece([0, 0], [2, 0])
+a.move_piece([1, 0], [2, 0])
+a.display_board
+p a.grid
