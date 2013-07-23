@@ -2,6 +2,7 @@
 
 require 'colorize'
 
+
 class Chess
 
 end
@@ -204,13 +205,15 @@ class Pawn < Piece
   def valid_move?(start, destination, board)
     # false if invalid general move
     return false unless super(start, destination, board)
+
     # if pawn is in starting row, then first move for pawn
-    if ((start[1] - destination[1] == -1 && board.tile_at(start).color == :black) ||
-        (start[1] - destination[1] == 1 && board.tile_at(start).color == :white) ||
-        (start[0] == 6 && destination[0] == 4 && board.tile_at(start).color) ||
-        (start[0] == 1 && destination[0] == 3 && board.tile_at(start).color))
-       return same_row?(start, destination)
+    if ((start[0] - destination[0] == -1 && board.tile_at(start).color == :black) ||
+        (start[0] - destination[0] == 1 && board.tile_at(start).color == :white) ||
+        (start[0] == 6 && destination[0] == 4 && board.tile_at(start).color == :white) ||
+        (start[0] == 1 && destination[0] == 3 && board.tile_at(start).color == :black))
+      return same_column?(start, destination)
     end
+
   end
 end
 
@@ -222,6 +225,5 @@ end
 
 
 a = Board.new
-a.move_piece([1, 0], [2, 0])
+a.move_piece([6, 1], [3, 1])
 a.display_board
-p a.grid
