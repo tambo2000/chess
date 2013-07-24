@@ -110,17 +110,21 @@ class Piece
 
   def valid_move?(start, destination, board)
     # not valid if off the board
+    p "In piece valid_move?"
     return false if destination.any? { |val| val < 0 || val > 7 }
     if board.tile_at(destination) != :empty
       if board.tile_at(start).color == board.tile_at(destination).color
+        p "color same"
         return false # not valid if same color piece at destination
       elsif board.tile_at(destination).class == King
+        p "king ar dest"
         return false # not valid if king at destination
       elsif start == destination
+        p "start = dest"
         return false
       end
     end
-
+    p "right before return true"
     true
   end
 
@@ -145,11 +149,65 @@ class Piece
     false
   end
 
+  def return_low_high(num1, num2)
+    if num1 < num2
+      return [num1, num2]
+    else
+      return [num2, num1]
+    end
+  end
+
 end
 
 class Slider < Piece
   def initialize(position, color, board)
     super(position, color, board)
+  end
+
+  def valid_move?(start, destination, board)
+    # false if invalid general move
+    super(start, destination, board)
+  end
+
+  def valid_ordinal_move?(start, destination, board)
+    # false if not in same row or column (non vertical or horizontal move)
+    return false unless (same_row?(start, destination) ||
+                        same_column?(start, destination))
+
+    rank_low, rank_high = return_low_high(start[0], destination[0])
+    file_low, file_high = return_low_high(start[1], destination[1])
+    # if in same rank
+    if same_column?(start, destination)
+      # check each tile in between
+      ((rank_low + 1)...rank_high).each do |index|
+        # make sure there are no pieces in between
+        return false if board.tile_at([index, start[1]]) != :empty
+      end
+    else # if in same file
+      ((file_low + 1)...file_high).each do |index|
+        return false if board.tile_at([start[0], index]) != :empty
+      end
+    end
+    true
+  end
+
+  def valid_diagonal_move?(start, destination, board)
+    # false if not in same diagonal
+    p "we got here"
+
+    return false unless same_diagonal?(start, destination)
+    # makes sure space in between are empty
+    rank_low, rank_high = return_low_high(start[0], destination[0])
+    file_low, file_high = return_low_high(start[1], destination[1])
+
+    ((rank_low + 1)...rank_high).each do |rank|
+      ((file_low + 1)...file_high).each do |file|
+        if board.tile_at([rank, file]) != :empty
+          return false
+        end
+      end
+    end
+    true
   end
 
 end
@@ -163,21 +221,7 @@ class Rook < Slider
     # false if invalid general move
     return false unless super(start, destination, board)
     # false if not in same row or column (non vertical or horizontal move)
-    return false unless same_row?(start, destination) || same_column?(start, destination)
-    # if in same rank
-    if same_row?(start, destination)
-      # check each tile in between
-      ((start[1] + 1)...destination[1]).each do |index|
-        # make sure there are no pieces in between
-        return false if board.tile_at([start[0], index]) != :empty
-      end
-    else # if in same file
-      ((start[0] + 1)...destination[0]).each do |index|
-        return false if board.tile_at([index, start[1]]) != :empty
-      end
-    end
-
-    true
+    return valid_ordinal_move?(start, destination, board)
   end
 
 end
@@ -189,27 +233,13 @@ class Bishop < Slider
 
   def valid_move?(start, destination, board)
     # false if invalid general move
+    p "In bishop valid_move? before super call"
+
     return false unless super(start, destination, board)
+    p "In bishop valid_move? after super call"
     # false if not in same diagonal
-    return false unless same_diagonal?(start, destination)
-    # makes sure space in between are empty
-    if start[0] < destination[0]
-      rank_low, rank_high = start[0], destination[0]
-    else
-      rank_low, rank_high = destination[0], start[0]
-    end
-    if start[1] < destination[1]
-      file_low, file_high = start[1], destination[1]
-    else
-      file_low, file_high = destination[1], start[1]
-    end
-    ((rank_low + 1)...rank_high).each do |rank|
-      ((file_low + 1)...file_high).each do |file|
-        if board.tile_at([rank, file]) != :empty
-          return false
-        end
-      end
-    end
+
+    return valid_diagonal_move?(start, destination, board)
   end
 
 end
@@ -218,12 +248,38 @@ class Queen < Slider
   def initialize(position, color, board)
     super(position, color, board)
   end
+
+  def valid_move?(start, destination, board)
+    # false if invalid general move
+    return false unless super(start, destination, board)
+    # false if not in same diagonal
+
+    return (valid_diagonal_move?(start, destination, board) ||
+           valid_ordinal_move?(start, destination, board))
+  end
 end
 
 class Knight < Piece
   def initialize(position, color, board)
     super(position, color, board)
   end
+
+  def valid_move?(start, destination, board)
+    # false if invalid general move
+    return false unless super(start, destination, board)
+
+    valid_moves = [1, 2, -1, -2]
+    possible_spaces = []
+    valid_moves.each do |move_horizontal|
+      valid_moves.each do |move_vertical|
+        next if move_horizontal.abs == move_vertical.abs
+        possible_spaces << [(start[0] + move_horizontal), (start[1] + move_vertical)]
+      end
+    end
+
+    possible_spaces.include?(destination)
+  end
+
 end
 
 class Pawn < Piece
@@ -289,9 +345,23 @@ a.move_piece([3, 2], [4, 1])
 a.display_board
 a.move_piece([0, 2], [2, 0])
 a.display_board
-a.move_piece([2, 0], [5, 3])
+a.move_piece([6, 0], [4, 0])
 a.display_board
-a.move_piece([2, 0], [1, 1])
+a.move_piece([7, 0], [2, 0])
 a.display_board
-a.move_piece([1, 1], [2, 1])
+a.move_piece([7, 0], [5, 0])
+a.display_board
+a.move_piece([5, 0], [5, 7])
+a.display_board
+a.move_piece([5, 7], [1, 7])
+a.display_board
+a.move_piece([0, 3], [3, 0])
+a.display_board
+a.move_piece([3, 0], [4, 0])
+a.display_board
+a.move_piece([0, 1], [2, 2])
+a.display_board
+a.move_piece([7, 6], [4, 4])
+a.display_board
+a.move_piece([7, 6], [5, 7])
 a.display_board
