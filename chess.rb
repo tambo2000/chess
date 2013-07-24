@@ -186,6 +186,32 @@ class Bishop < Slider
   def initialize(position, color, board)
     super(position, color, board)
   end
+
+  def valid_move?(start, destination, board)
+    # false if invalid general move
+    return false unless super(start, destination, board)
+    # false if not in same diagonal
+    return false unless same_diagonal?(start, destination)
+    # makes sure space in between are empty
+    if start[0] < destination[0]
+      rank_low, rank_high = start[0], destination[0]
+    else
+      rank_low, rank_high = destination[0], start[0]
+    end
+    if start[1] < destination[1]
+      file_low, file_high = start[1], destination[1]
+    else
+      file_low, file_high = destination[1], start[1]
+    end
+    ((rank_low + 1)...rank_high).each do |rank|
+      ((file_low + 1)...file_high).each do |file|
+        if board.tile_at([rank, file]) != :empty
+          return false
+        end
+      end
+    end
+  end
+
 end
 
 class Queen < Slider
@@ -260,4 +286,12 @@ a.display_board
 a.move_piece([1, 2], [3, 2])
 a.display_board
 a.move_piece([3, 2], [4, 1])
+a.display_board
+a.move_piece([0, 2], [2, 0])
+a.display_board
+a.move_piece([2, 0], [5, 3])
+a.display_board
+a.move_piece([2, 0], [1, 1])
+a.display_board
+a.move_piece([1, 1], [2, 1])
 a.display_board
