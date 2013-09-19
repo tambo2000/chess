@@ -2,8 +2,35 @@
 
 require 'colorize'
 
-
 class Chess
+  attr_reader :board
+  attr_accessor :current_player
+
+  def initialize
+    @board = Board.new
+    @current_player = :white
+    @player_one = HumanPlayer.new
+    @player_two = HumanPlayer.new
+  end
+
+  def play
+    until @board.checkmate?(@current_player)
+
+      moved_correctly = false
+      until moved_correctly == true
+        @board.display_board
+        player_one_move = @player_one.get_move(@current_player)
+        moved_correctly = @board.move_piece(player_one_move[0], player_one_move[1])
+        if moved_correctly == false
+          puts "Invalid move. Try again."
+        end
+      end
+
+      @current_player = @current_player == :white ? :black : :white
+
+    end
+    @board.display_board
+  end
 
 end
 
@@ -48,11 +75,68 @@ class Board
 
   end
 
+  def in_check?(player_color)
+    # get the same color king's location
+    own_king_location = []
+    @grid.each_with_index do |rank, rank_index|
+      rank.each_with_index do |piece, file_index|
+        next if piece == :empty
+        if piece.color == player_color && piece.class == King
+          own_king_location = [rank_index, file_index]
+        end
+      end
+    end
+
+    # check each opposite color piece and see if they can move to our king validly
+    @grid.each_with_index do |rank, rank_index|
+      rank.each_with_index do |piece, file_index|
+        next if piece == :empty
+        if piece.color != player_color &&
+        piece.valid_move_without_in_check?([rank_index, file_index], own_king_location, self)
+          # puts "#{player_color} is in check!"
+          return true
+        end
+      end
+    end
+
+    false
+  end
+
+  def checkmate?(player_color)
+    return false unless in_check?(player_color)
+    @grid.each_with_index do |rank, rank_index|
+      rank.each_with_index do |piece, file_index|
+        next if piece == :empty
+        if piece.color == player_color
+
+          # go through each of player's pieces
+          # go through each of piece's valid moves
+          # check if board still in check after each move
+          # if not, return true
+
+          (0..7).each do |destination_rank|
+            (0..7).each do |destination_file|
+              dup_board = self.dup
+              dup_board.move_piece([rank_index, file_index], [destination_rank, destination_file])
+              #
+              # p [rank_index, file_index]
+              # p [destination_rank, destination_file]
+              return false if !dup_board.in_check?(player_color)
+            end
+          end
+        end
+      end
+    end
+    p "#{player_color} is in checkmate!"
+    true
+  end
+
   def move_piece(start, destination)
     if tile_at(start) != :empty
-      tile_at(start).move(start, destination, self)
+      return tile_at(start).move(start, destination, self)
     else
       puts "The start space is empty!"
+      return false
     end
 
   end
@@ -67,6 +151,20 @@ class Board
     @grid[rank][file] = piece
   end
 
+  def dup
+    new_board = Board.new
+    new_board.grid.each_with_index do |rank, rank_index|
+      rank.each_with_index do |tile, file_index|
+        if @grid[rank_index][file_index] != :empty
+          new_board.grid[rank_index][file_index] = @grid[rank_index][file_index].dup
+        else
+          new_board.grid[rank_index][file_index] = :empty
+        end
+      end
+    end
+    new_board
+  end
+
   def display_board
     pieces = { Rook => "♜",
                Bishop => "♝",
@@ -75,7 +173,9 @@ class Board
                Pawn => "♟",
                King => "♚"}
 
+    puts "  a b c d e f g h"
     (0..7).each do |rank|
+      print "#{8 - rank} "
       (0..7).each do |file|
         background = (rank + file) % 2 == 0 ? :yellow : :light_red
         piece = self.tile_at([rank, file])
@@ -85,9 +185,11 @@ class Board
           print "  ".colorize(:background => background)
         end
       end
+      print " #{8 - rank}"
       puts
     end
-
+    puts "  a b c d e f g h"
+    puts
   end
 
 end
@@ -105,26 +207,57 @@ class Piece
     if valid_move?(start, destination, board)
       board.set_tile_at(start, :empty)
       board.set_tile_at(destination, self)
+      return true
     end
+
+    return false
+  end
+
+  def move_without_validation(start, destination, board)
+    #check if valid move
+      board.set_tile_at(start, :empty)
+      board.set_tile_at(destination, self)
   end
 
   def valid_move?(start, destination, board)
     # not valid if off the board
-    p "In piece valid_move?"
     return false if destination.any? { |val| val < 0 || val > 7 }
+
+    return false unless valid_move_without_in_check?(start, destination, board)
+
     if board.tile_at(destination) != :empty
       if board.tile_at(start).color == board.tile_at(destination).color
-        p "color same"
         return false # not valid if same color piece at destination
-      elsif board.tile_at(destination).class == King
-        p "king ar dest"
-        return false # not valid if king at destination
       elsif start == destination
-        p "start = dest"
+        return false
+      end
+    else
+      dup_board = board.dup
+      if (board.tile_at(destination) == :empty ||
+          (board.tile_at(destination).class != King &&
+          board.tile_at(destination).color != board.tile_at(start).color))
+        move_without_validation(start, destination, dup_board)
+      end
+      if dup_board.in_check?(@color)
         return false
       end
     end
-    p "right before return true"
+
+    true
+  end
+
+  def valid_move_without_in_check?(start, destination, board)
+    # not valid if off the board
+    return false if destination.any? { |val| val < 0 || val > 7 }
+
+    if board.tile_at(destination) != :empty
+      if board.tile_at(start).color == board.tile_at(destination).color
+        return false
+        # not valid if same color piece at destination
+      elsif start == destination
+        return false
+      end
+    end
     true
   end
 
@@ -143,7 +276,7 @@ class Piece
   end
 
   def same_diagonal?(start, destination)
-    if ((start[1] - destination[1])/(start[0] - destination[0])).abs == 1
+    if ((start[1].to_f - destination[1])/(start[0] - destination[0])).abs == 1.0
       return true
     end
     false
@@ -164,12 +297,12 @@ class Slider < Piece
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
     super(start, destination, board)
   end
 
-  def valid_ordinal_move?(start, destination, board)
+  def valid_cardinal_move?(start, destination, board)
     # false if not in same row or column (non vertical or horizontal move)
     return false unless (same_row?(start, destination) ||
                         same_column?(start, destination))
@@ -193,20 +326,22 @@ class Slider < Piece
 
   def valid_diagonal_move?(start, destination, board)
     # false if not in same diagonal
-    p "we got here"
-
     return false unless same_diagonal?(start, destination)
     # makes sure space in between are empty
-    rank_low, rank_high = return_low_high(start[0], destination[0])
-    file_low, file_high = return_low_high(start[1], destination[1])
-
-    ((rank_low + 1)...rank_high).each do |rank|
-      ((file_low + 1)...file_high).each do |file|
-        if board.tile_at([rank, file]) != :empty
-          return false
-        end
+    i = 1
+    while i < (start[0] - destination[0]).abs
+      if start[0] < destination[0] && start[1] < destination[1]
+        return false unless board.tile_at([start[0]+i, start[1]+i]) == :empty
+      elsif start[0] < destination[0] && start[1] > destination[1]
+        return false unless board.tile_at([start[0]+i, start[1]-i]) == :empty
+      elsif start[0] > destination[0] && start[1] < destination[1]
+        return false unless board.tile_at([start[0]-i, start[1]+i]) == :empty
+      elsif start[0] > destination[0] && start[1] > destination[1]
+        return false unless board.tile_at([start[0]-i, start[1]-i]) == :empty
       end
+      i += 1
     end
+
     true
   end
 
@@ -217,11 +352,11 @@ class Rook < Slider
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
     return false unless super(start, destination, board)
     # false if not in same row or column (non vertical or horizontal move)
-    return valid_ordinal_move?(start, destination, board)
+    return valid_cardinal_move?(start, destination, board)
   end
 
 end
@@ -231,12 +366,10 @@ class Bishop < Slider
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
-    p "In bishop valid_move? before super call"
 
     return false unless super(start, destination, board)
-    p "In bishop valid_move? after super call"
     # false if not in same diagonal
 
     return valid_diagonal_move?(start, destination, board)
@@ -249,13 +382,13 @@ class Queen < Slider
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
+
     return false unless super(start, destination, board)
     # false if not in same diagonal
-
     return (valid_diagonal_move?(start, destination, board) ||
-           valid_ordinal_move?(start, destination, board))
+           valid_cardinal_move?(start, destination, board))
   end
 end
 
@@ -264,7 +397,7 @@ class Knight < Piece
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
     return false unless super(start, destination, board)
 
@@ -287,7 +420,7 @@ class Pawn < Piece
     super(position, color, board)
   end
 
-  def valid_move?(start, destination, board)
+  def valid_move_without_in_check?(start, destination, board)
     # false if invalid general move
     return false unless super(start, destination, board)
 
@@ -299,11 +432,15 @@ class Pawn < Piece
         return false
     end
 
+    if start[0] == destination[0]
+      return false
+    end
+
     # if pawn can capture then diagonal move allowed
-    if (start[0] - destination[0]).abs == 1 &&
+    if ((start[0] - destination[0]).abs == 1 &&
        (start[1] - destination[1]).abs == 1 &&
        board.tile_at(destination) != :empty &&
-       board.tile_at(destination).color != pawn.color
+       board.tile_at(destination).color != pawn.color)
        return true
     # pawn can move one space forward
     elsif ((start[0] - destination[0] == -1 &&
@@ -327,41 +464,47 @@ class King < Piece
   def initialize(position, color, board)
     super(position, color, board)
   end
+
+  def valid_move_without_in_check?(start, destination, board)
+    return false unless super(start, destination, board)
+
+    return false if ((start[0] - destination[0]).abs > 1 ||
+                        (start[1] - destination[1]).abs > 1)
+    true
+  end
+
 end
 
 
-a = Board.new
-a.move_piece([6, 1], [5, 1])
-a.display_board
-a.move_piece([1, 1], [3, 1])
-a.display_board
-a.move_piece([5, 1], [4, 1])
-a.display_board
-a.move_piece([3, 1], [4, 1])
-a.display_board
-a.move_piece([1, 2], [3, 2])
-a.display_board
-a.move_piece([3, 2], [4, 1])
-a.display_board
-a.move_piece([0, 2], [2, 0])
-a.display_board
-a.move_piece([6, 0], [4, 0])
-a.display_board
-a.move_piece([7, 0], [2, 0])
-a.display_board
-a.move_piece([7, 0], [5, 0])
-a.display_board
-a.move_piece([5, 0], [5, 7])
-a.display_board
-a.move_piece([5, 7], [1, 7])
-a.display_board
-a.move_piece([0, 3], [3, 0])
-a.display_board
-a.move_piece([3, 0], [4, 0])
-a.display_board
-a.move_piece([0, 1], [2, 2])
-a.display_board
-a.move_piece([7, 6], [4, 4])
-a.display_board
-a.move_piece([7, 6], [5, 7])
-a.display_board
+class HumanPlayer
+
+  # def initialize(color)
+#     @color = color
+#   end
+
+  def get_move(color)
+    puts "#{color} player, Which piece would you like to move?"
+    start_location = convert_user_input_to_location(gets.chomp)
+
+    puts "#{color} player, Where would you like to move this piece?"
+    end_location = convert_user_input_to_location(gets.chomp)
+
+    [start_location, end_location]
+  end
+
+  def convert_user_input_to_location(user_input)
+    file_translate = { "a" => 0, "b" => 1, "c" => 2, "d" => 3, "e" => 4,
+                        "f" => 5, "g" => 6, "h" => 7 }
+    location = [0,0]
+
+    location[0] = (8 - user_input.scan(/\d/).first.to_i)
+    location[1] = file_translate[user_input.scan(/[a-h]|[A-H]/).first.downcase]
+
+    location
+  end
+
+end
+
+
+a = Chess.new
+a.play
